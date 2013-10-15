@@ -1,11 +1,11 @@
 import itertools as it
+import functools as ft
 import multiprocessing as mp
 
 import numpy as np
 from scipy import stats
 
 from skimage.segmentation import slic
-from skimage.util import regular_grid
 
 
 def quantile(ar, q, axis=None):
@@ -46,29 +46,44 @@ def superpixel_color_variance(image, segments):
     Parameters
     ----------
     """
+    pass
+
+
+def slic_unfold(im, params):
+    return slic(im, **params)
+
 
 def slic_cv(image, n_segmentss=[100, 200, 400, 800, 1600, 3200],
-            ratios=[1.0, 2.0, 4.0, 8.0, 16.0, 32.0], **kwargs):
-    """Run SLIC with various parameter settings to minimise variance.
+            compactness=[1.0, 2.0, 4.0, 8.0, 16.0, 32.0], **kwargs):
+    """Run SLIC with various parameter settings for later cross-validation.
 
     Parameters
     ----------
     image : np.ndarray, 2D or 3D grayscale or RGB.
         The image to be segmented.
-    n_segmentss : list of int
+    n_segmentss : list of int, optional
         The values to try for `n_segments` in `skimage.segmentation.slic`.
-    ratios : list of float
-        The values to try for `ratio` in `skimage.segmentation.slic`.
-    **kwargs : dict
+    compactness : list of float, optional
+        The values to try for `compactness` in `skimage.segmentation.slic`.
+    **kwargs : dict, optional
         Other keyword arguments for `skimage.segmentation.slic`.
 
     Returns
     -------
+    segs : list of array of int
+        The segmentations returned by SLIC for each parameter combination.
+    params : list of tuple
+        The parameters given to SLIC corresponding to each segmentation.
     """
-    to_test = list(it.product(n_segmentss, ratios))
+    cv_test = list(it.product(n_segmentss, compactness))
     workers = mp.Pool()
-    def test_slic(nseg_ratio_tup):
-        nseg, ratio = nseg_ratio_tup
-        return slic(image, n_segments=nseg, ratio=ratio, **kwargs)
-    result = workers.map(test_slic, to_test)
-    
+    test_slic = ft.partial(slic_unfold, image)
+    test_kwargs = []
+    for seg, c in cv_test:
+        these_kwargs = kwargs.copy()
+        these_kwargs['n_segments'] = seg
+        these_kwargs['compactness'] = c
+        test_kwargs.append(these_kwargs)
+    result = workers.map(test_slic, test_kwargs)
+    return result, cv_test
+

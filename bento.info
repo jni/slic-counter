@@ -1,0 +1,7 @@
+Name: slicco
+Author: Juan Nunez-Iglesias <juan.n@unimelb.edu.au>
+Summary: cell counting based on SLIC superpixels
+
+Library:
+    Packages: slicco
+
